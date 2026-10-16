@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BridgeGPT GT Review</title>
+<style>
+:root{--bg:#f6f7f9;--card:#fff;--ink:#1d2430;--mute:#667085;--line:#e3e6ec;--ok:#1a7f4b;--bad:#c62828;--unsure:#b26a00;--acc:#2456d6}
+@media(prefers-color-scheme:dark){:root{--bg:#14171c;--card:#1d2127;--ink:#e8ebf0;--mute:#9aa3b2;--line:#2c323b;--ok:#4cc38a;--bad:#ff6b6b;--unsure:#f0b04a;--acc:#7aa2ff}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 system-ui,Segoe UI,Roboto,sans-serif}
+header{position:sticky;top:0;z-index:5;background:var(--card);border-bottom:1px solid var(--line);padding:10px 16px}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+h1{font-size:16px;margin:0 12px 0 0}
+button,select,input{font:inherit;color:inherit;background:var(--card);border:1px solid var(--line);border-radius:6px;padding:5px 10px}
+button{cursor:pointer}button:hover{border-color:var(--acc)}
+button.on{background:var(--acc);color:#fff;border-color:var(--acc)}
+.mute{color:var(--mute)}
+main{max-width:1250px;margin:0 auto;padding:12px 16px 60px}
+details.help{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:8px 12px;margin-bottom:12px}
+details.help p{margin:6px 0}
+.legend{display:flex;gap:12px;flex-wrap:wrap;margin:8px 0 0;font-size:13px}
+.sw{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:4px;vertical-align:-1px}
+.img{background:var(--card);border:1px solid var(--line);border-radius:10px;margin-bottom:16px;padding:12px}
+.img>h2{font-size:15px;margin:0 0 8px}
+.thumbs{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.thumbs figure,.pair figure{margin:0}
+figcaption{font-size:12px;color:var(--mute);margin-top:2px}
+img{width:100%;height:auto;display:block;border-radius:6px;cursor:zoom-in;background:#0001}
+.q{border-top:1px solid var(--line);margin-top:12px;padding-top:10px;display:grid;grid-template-columns:minmax(260px,1fr) minmax(0,340px);gap:12px}
+.q.rev-ok{border-left:4px solid var(--ok);padding-left:8px}.q.rev-bad{border-left:4px solid var(--bad);padding-left:8px}.q.rev-unsure{border-left:4px solid var(--unsure);padding-left:8px}
+.badge{display:inline-block;padding:0 7px;border-radius:99px;font-weight:600;font-size:12px;background:var(--acc);color:#fff;margin-right:6px}
+.flag{color:var(--bad);font-weight:600}
+.quest{font-size:15px;font-weight:600;margin:4px 0}
+.verd{display:flex;gap:6px;margin-top:8px}
+.verd button.sel-ok{background:var(--ok);color:#fff;border-color:var(--ok)}
+.verd button.sel-bad{background:var(--bad);color:#fff;border-color:var(--bad)}
+.verd button.sel-unsure{background:var(--unsure);color:#fff;border-color:var(--unsure)}
+textarea{width:100%;margin-top:6px;font:inherit;color:inherit;background:var(--card);border:1px solid var(--line);border-radius:6px;padding:5px;resize:vertical}
+code{font-size:12px;background:var(--line);padding:1px 4px;border-radius:4px}
+#lb{position:fixed;inset:0;background:#000d;display:none;align-items:center;justify-content:center;z-index:20;cursor:zoom-out}
+#lb img{max-width:96vw;max-height:94vh;width:auto;cursor:zoom-out}
+.pager{display:flex;gap:8px;align-items:center;justify-content:center;margin:12px 0}
+@media(max-width:800px){.thumbs{grid-template-columns:repeat(2,1fr)}.q{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header>
+  <div class="row">
+    <h1>BridgeGPT · Ground-truth review</h1>
+    <span id="tabs" class="row"></span>
+    <select id="fcls"><option value="">All classes</option><option>A</option><option>B</option><option>C</option></select>
+    <select id="fstat">
+      <option value="">All queries</option>
+            <option value="todo">Images not fully reviewed</option>
+      <option value="bad">Marked wrong</option>
+      <option value="unsure">Marked unsure</option>
+    </select>
+        <input id="search" placeholder="image id…" size="12">
+    <input id="who" placeholder="your name" size="12">
+    <button id="exp">Export results</button>
+    <span id="prog" class="mute"></span>
+  </div>
+</header>
+<main>
+  <details class="help" open>
+    <summary><b>How to review</b> (click to collapse)</summary>
+    <p>The ground truth (GT) answers were <b>generated automatically from human pixel labels</b> (the "Human element / Human rust" panels), using fixed question templates. An answer can therefore be wrong because (1) the human label is wrong, or (2) the answer does not match the question.</p>
+    <p>One image per page. For each question, check that the <b>GT answer overlay</b> really shows what the question asks for, using the original photo and the human labels. Mark <b>Correct / Wrong / Unsure</b> (add a comment if wrong). Answers are saved automatically; when all questions of the image are marked, go to the next image. At the end use <b>Export results</b> and send the file back.</p><p class="mute">Keyboard: ← / → switch image. "Most" = element with the largest rust area inside it; elements under 200 px are ignored by the generator.</p>
+  </details>
+  <div class="pager" id="pg1"></div>
+  <div id="list"></div>
+  <div class="pager" id="pg2"></div>
+</main>
+<div id="lb"><img id="lbi"></div>
+<script src="data.js"></script>
+<script>
+const D = window.REVIEW_DATA, PER = 1;
+let split = 'train', page = 0;
+const $ = s => document.querySelector(s);
+const KEY = 'gtreview_v1';
+let R = {}; try { R = JSON.parse(localStorage.getItem(KEY) || '{}'); } catch (e) {}
+const save = () => { try { localStorage.setItem(KEY, JSON.stringify(R)); } catch (e) {} };
+const rk = (s, q) => s + '/' + q;
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const rgb = c => `rgb(${c.join(',')})`;
+
+const LEGEND = `<div class="legend">${Object.entries(D.colors).map(([n, c]) => `<span><i class="sw" style="background:${rgb(c)}"></i>${n}</span>`).join('')}</div>`;
+$('#tabs').innerHTML = Object.keys(D.splits).map(s => `<button data-s="${s}">${s} (${D.splits[s].length} img / ${D.splits[s].reduce((a, i) => a + i.queries.length, 0)} q)</button>`).join('');
+$('#who').value = localStorage.getItem('gtreview_who') || '';
+$('#who').oninput = e => { try { localStorage.setItem('gtreview_who', e.target.value); } catch (_) {} };
+document.querySelectorAll('#tabs button').forEach(b => b.onclick = () => { split = b.dataset.s; page = 0; render(); });
+['fcls', 'fstat', 'search'].forEach(i => $('#' + i).oninput = () => { page = 0; render(); });
+
+function visible() {
+  const fc = $('#fcls').value, fs = $('#fstat').value, se = $('#search').value.trim().toLowerCase();
+  let out = [];
+  for (const it of D.splits[split]) {
+    if (se && !it.id.toLowerCase().includes(se)) continue;
+    const qs = it.queries.filter(q => {
+      if (fc && q.cls !== fc) return false;
+      const v = (R[rk(split, q.qid)] || {}).v;
+      if (fs === 'todo') return true;
+      if (fs === 'bad' && v !== 'bad') return false;
+      if (fs === 'unsure' && v !== 'unsure') return false;
+      return true;
+    });
+    if (fs === 'todo' && it.queries.every(q => (R[rk(split, q.qid)] || {}).v)) continue;
+    if (qs.length) out.push({ it, qs });
+  }
+  return out;
+}
+
+function metaText(q) {
+  const m = q.meta, p = [];
+  if (m.targets) p.push('targets: ' + m.targets.join(', '));
+  if (m.element) p.push('element: ' + m.element);
+  if (m.elements) p.push('elements: ' + m.elements.join(', '));
+  if (m.mode) p.push('mode: ' + m.mode);
+  if (m.rust_px != null) p.push('rust px in it: ' + m.rust_px);
+  return p.join(' · ');
+}
+const kv = o => Object.entries(o).map(([k, v]) => `${k} ${v}`).join(', ') || '—';
+
+function queryHtml(it, q) {
+  const r = R[rk(split, q.qid)] || {}, base = `img/${split}/${it.id}_q${q.qid}`;
+  const sv = x => r.v === x ? 'sel-' + x : '';
+  
+  return `<div class="q ${r.v ? 'rev-' + r.v : ''}" data-q="${q.qid}">
+    <div>
+      <span class="badge">${q.cls}</span><span class="mute">qid ${q.qid}</span>
+      <div class="quest">${esc(q.question)}</div>
+      <div>GT answer: <i>${esc(q.answer)}</i></div>
+      <div class="mute">${esc(metaText(q))}</div>
+      <div>GT area ${q.gt_px} px</div>
+      <div class="verd">
+        <button data-v="ok" class="${sv('ok')}">✓ Correct</button>
+        <button data-v="bad" class="${sv('bad')}">✗ Wrong</button>
+        <button data-v="unsure" class="${sv('unsure')}">? Unsure</button>
+      </div>
+      <textarea rows="2" placeholder="comment (what is wrong?)">${esc(r.c || '')}</textarea>
+    </div>
+    <figure><img loading="lazy" src="${base}_gt.jpg"><figcaption><b>GT answer overlay</b> (what the answer claims)</figcaption></figure>
+  </div>`;
+}
+
+function render() {
+  document.querySelectorAll('#tabs button').forEach(b => b.classList.toggle('on', b.dataset.s === split));
+  const vis = visible(), pages = Math.max(1, vis.length);
+  page = Math.min(page, pages - 1);
+  $('#list').innerHTML = vis.slice(page * PER, page * PER + PER).map(({ it, qs }) => {
+    const b = `img/${split}/${it.id}`;
+    const th = [['orig', 'Original', ''], ['helem', 'Human element labels', kv(it.human_elem_px)],
+      ['hrust', 'Human rust labels', `${it.human_rust_px} px; per element: ${kv(it.human_rust_by_elem)}`]]
+      .map(([k, t, s]) => `<figure><img loading="lazy" src="${b}_${k}.jpg"><figcaption><b>${t}</b><br>${s}</figcaption></figure>`).join('');
+    return `<section class="img" data-id="${it.id}"><h2>${it.id} <span class="mute">${it.w}×${it.h}</span></h2><div class="thumbs">${th}</div>${LEGEND}${qs.map(q => queryHtml(it, q)).join('')}</section>`;
+  }).join('') || '<p class="mute">Nothing matches the filters.</p>';
+  const cur = vis[page], st = cur ? cur.it.queries.filter(q => (R[rk(split, q.qid)] || {}).v).length + '/' + cur.it.queries.length : '';
+  const pg = `<button ${page ? '' : 'disabled'} onclick="page--;render();scrollTo(0,0)">‹ Prev</button><span>image ${page + 1} / ${vis.length} · <b>${st}</b> questions reviewed</span><button class="${cur && st.split('/')[0] === st.split('/')[1] ? 'on' : ''}" ${page < vis.length - 1 ? '' : 'disabled'} onclick="page++;render();scrollTo(0,0)">Next image ›</button><button onclick="nextTodo()">Next unreviewed ⏭</button>`;
+  $('#pg1').innerHTML = $('#pg2').innerHTML = pg;
+  progress();
+}
+
+function nextTodo() {
+  const vis = visible();
+  for (let i = 1; i <= vis.length; i++) {
+    const j = (page + i) % vis.length;
+    if (vis[j].it.queries.some(q => !(R[rk(split, q.qid)] || {}).v)) { page = j; render(); scrollTo(0, 0); return; }
+  }
+  alert('All images in this split are fully reviewed.');
+}
+function progress() {
+  let tot = 0, done = 0, bad = 0;
+  for (const s in D.splits) for (const it of D.splits[s]) for (const q of it.queries) { tot++; const v = (R[rk(s, q.qid)] || {}).v; if (v) done++; if (v === 'bad') bad++; }
+  $('#prog').textContent = `reviewed ${done}/${tot} · wrong ${bad}`;
+}
+
+$('#list').addEventListener('click', e => {
+  if (e.target.tagName === 'IMG') { $('#lbi').src = e.target.src; $('#lb').style.display = 'flex'; return; }
+  const b = e.target.closest('.verd button'); if (!b) return;
+  const qd = b.closest('.q'), id = b.closest('.img').dataset.id, qid = +qd.dataset.q, k = rk(split, qid);
+  const cur = R[k] || {}; cur.v = cur.v === b.dataset.v ? undefined : b.dataset.v; cur.img = id; R[k] = cur; save();
+  qd.className = 'q ' + (cur.v ? 'rev-' + cur.v : '');
+  qd.querySelectorAll('.verd button').forEach(x => x.className = cur.v === x.dataset.v ? 'sel-' + x.dataset.v : '');
+  progress();
+});
+$('#list').addEventListener('input', e => {
+  if (e.target.tagName !== 'TEXTAREA') return;
+  const qd = e.target.closest('.q'), k = rk(split, +qd.dataset.q), cur = R[k] || {};
+  cur.c = e.target.value; cur.img = qd.closest('.img').dataset.id; R[k] = cur; save();
+});
+$('#lb').onclick = () => $('#lb').style.display = 'none';
+document.addEventListener('keydown', e => {
+  if (!/TEXTAREA|INPUT|SELECT/.test(e.target.tagName)) { if (e.key === 'ArrowRight') { page++; render(); scrollTo(0, 0); } if (e.key === 'ArrowLeft' && page) { page--; render(); scrollTo(0, 0); } } if (e.key === 'Escape') $('#lb').style.display = 'none'; });
+
+$('#exp').onclick = () => {
+  const rows = [];
+  for (const s in D.splits) for (const it of D.splits[s]) for (const q of it.queries) {
+    const r = R[rk(s, q.qid)] || {};
+    rows.push({ reviewer: $('#who').value, split: s, image_id: it.id, qid: q.qid, cls: q.cls, question: q.question, answer: q.answer,
+      verdict: r.v || '', comment: r.c || '' });
+  }
+  const name = ($('#who').value || 'reviewer').replace(/\W+/g, '_');
+  const dl = (txt, fn, type) => { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([txt], { type })); a.download = fn; a.click(); };
+  dl(JSON.stringify(rows, null, 1), `gt_review_${name}.json`, 'application/json');
+  const csv = [Object.keys(rows[0]).join(',')].concat(rows.map(r => Object.values(r).map(v => '"' + String(v).replace(/"/g, '""') + '"').join(','))).join('\n');
+  dl('﻿' + csv, `gt_review_${name}.csv`, 'text/csv');
+};
+render();
+</script>
+</body>
+</html>
